@@ -284,6 +284,28 @@ def _split_csv(s: str):
     return parts
 
 
+DEFAULT_EXCLUDED_DIRS = {
+    "venv",
+    ".venv",
+    "node_modules",
+    "__pycache__",
+    ".git",
+    "dist",
+    "build",
+    "temp",
+    "old_files",
+    "flask_session",
+}
+
+
+# If '--replace-excluded-dirs' is not passed, default ignored are added to user choices.
+user_excluded = set(_split_csv(args.exclude_dirs))
+if args.replace_exclude_dirs:
+    effective_excluded = user_excluded
+else:
+    effective_excluded = set(DEFAULT_EXCLUDED_DIRS) | user_excluded
+
+
 # TODO: Works on MacOS and Windows 10+. Linux support can be added later
 def copy_to_clipboard(content):
     """Copy text to the system clipboard on macOS and Windows."""
