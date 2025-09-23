@@ -30,47 +30,85 @@ EXCLUDE_EXTENSIONS = set()  # User-defined extensions to exclude
 # Define programming-related file extensions (removed '.json' and '.md')
 PROGRAMMING_EXTENSIONS = {
     # General Programming Languages
-    '.py', '.java', '.c', '.cpp', '.h', '.hpp', '.cs', '.vb', '.r', 
-    '.rb', '.go', '.php', '.swift', '.kt', '.rs', '.scala', '.pl', '.lua', '.jl'
-
+    ".py",
+    ".java",
+    ".c",
+    ".cpp",
+    ".h",
+    ".hpp",
+    ".cs",
+    ".vb",
+    ".r",
+    ".rb",
+    ".go",
+    ".php",
+    ".swift",
+    ".kt",
+    ".rs",
+    ".scala",
+    ".pl",
+    ".lua",
+    ".jl"
     # Web Development
-    '.js', '.jsx', '.ts', '.tsx', '.html', '.css', '.scss', '.less', '.sass',
-
+    ".js",
+    ".jsx",
+    ".ts",
+    ".tsx",
+    ".html",
+    ".css",
+    ".scss",
+    ".less",
+    ".sass",
     # Shell & Automation
-    '.sh', '.zsh', '.fish', '.ps1', '.bat', '.cmd',
-
+    ".sh",
+    ".zsh",
+    ".fish",
+    ".ps1",
+    ".bat",
+    ".cmd",
     # Database & Query Languages
-    '.sql', '.psql', '.db', '.sqlite',
-
+    ".sql",
+    ".psql",
+    ".db",
+    ".sqlite",
     # Markup & Config Files
-    '.xml', '.json', '.toml', '.ini', '.yml', '.yaml', '.md', '.rst',
-
+    ".xml",
+    ".json",
+    ".toml",
+    ".ini",
+    ".yml",
+    ".yaml",
+    ".md",
+    ".rst",
     # Build & Make Systems
-    '.Makefile', '.gradle', '.cmake', '.ninja',
-
+    ".Makefile",
+    ".gradle",
+    ".cmake",
+    ".ninja",
     # Other
-    '.pqm', '.pq'
+    ".pqm",
+    ".pq",
 }
 
 # Define directories to exclude during file aggregation and directory tree generation
 EXCLUDE_DIRS = {
-    'venv',
-    '.venv',
-    'node_modules',
-    '__pycache__',
-    '.git',
-    'dist',
-    'build',
-    'temp',
-    'old_files',
-    'flask_session'
+    "venv",
+    ".venv",
+    "node_modules",
+    "__pycache__",
+    ".git",
+    "dist",
+    "build",
+    "temp",
+    "old_files",
+    "flask_session",
 }
 
 # Define the name of this script to exclude it
 SCRIPT_NAME = os.path.basename(__file__)
 
 # Define files to exclude from both aggregation and directory tree
-EXCLUDE_FILES = {SCRIPT_NAME, 'package-lock.json', 'package.json', 'temp.py'}
+EXCLUDE_FILES = {SCRIPT_NAME, "package-lock.json", "package.json", "temp.py"}
 
 
 def generate_directory_tree(startpath):
@@ -83,19 +121,22 @@ def generate_directory_tree(startpath):
     for root, dirs, files in os.walk(startpath):
         # Determine the relative path from the startpath
         rel_path = os.path.relpath(root, startpath)
-        if rel_path == '.':
-            rel_path = ''
+        if rel_path == ".":
+            rel_path = ""
 
         # Split the relative path into parts
         path_parts = rel_path.split(os.sep) if rel_path else []
 
         # Calculate the level of depth
         level = len(path_parts)
-        indent = '│   ' * level + '├── ' if level > 0 else ''
+        indent = "│   " * level + "├── " if level > 0 else ""
 
         # Add the current directory to the tree
-        current_dir = os.path.basename(root) if rel_path else os.path.basename(
-            startpath.rstrip(os.sep)) or startpath
+        current_dir = (
+            os.path.basename(root)
+            if rel_path
+            else os.path.basename(startpath.rstrip(os.sep)) or startpath
+        )
 
         # Check if the current directory is excluded
         if current_dir in EXCLUDE_DIRS:
@@ -119,7 +160,6 @@ def is_programming_file(filename):
     _, ext = os.path.splitext(filename)
     ext = ext.lower()
     return ext in PROGRAMMING_EXTENSIONS and ext not in EXCLUDE_EXTENSIONS
-
 
 
 def should_exclude(path):
@@ -159,36 +199,106 @@ def parse_arguments():
     Parses command-line arguments.
     """
     parser = argparse.ArgumentParser(
-        description="Aggregate code files into a master file with a directory tree.")
-    parser.add_argument('-c', '--clipboard', action='store_true',
-                        help="Copy the aggregated content to the clipboard instead of writing to a file.")
-    parser.add_argument('-d', '--directory', type=str, default=os.getcwd(),
-                        help="Specify the directory to start aggregation from. Defaults to the current working directory.")
-    parser.add_argument('-o', '--output-file', type=str, default=FULL_CODE_FILE_NAME,
-                        help="Name of the output file. Defaults to full_code.txt.")
-    parser.add_argument('-i', '--include-files', type=str, default="",
-                        help="Comma-separated list of files to include. If not provided, all files are included.")
-    parser.add_argument('-x', '--extensions', type=str, default="",
-                        help="Comma-separated list of programming extensions to use. Replaces the default set if provided.")
-    parser.add_argument('-e', '--exclude-dirs', type=str, default="",
-                        help="Comma-separated list of directories to exclude. Replaces the default set if provided.")
-    parser.add_argument('-X', '--exclude-extensions', type=str, default="",
-                    help="Comma-separated list of file extensions to exclude.")
+        description="Aggregate code files into a master file with a directory tree."
+    )
+    parser.add_argument(
+        "-c",
+        "--clipboard",
+        action="store_true",
+        help="Copy the aggregated content to the clipboard instead of writing to a file.",
+    )
+    parser.add_argument(
+        "-d",
+        "--directory",
+        type=str,
+        default=os.getcwd(),
+        help="Specify the directory to start aggregation from. Defaults to the current working directory.",
+    )
+    parser.add_argument(
+        "-o",
+        "--output-file",
+        type=str,
+        default=FULL_CODE_FILE_NAME,
+        help="Name of the output file. Defaults to full_code.txt.",
+    )
+    parser.add_argument(
+        "-i",
+        "--include-files",
+        type=str,
+        default="",
+        help="Comma-separated list of files to include. If not provided, all files are included.",
+    )
+    parser.add_argument(
+        "-x",
+        "--extensions",
+        type=str,
+        default="",
+        help="Comma-separated list of programming extensions to use. Replaces the default set if provided.",
+    )
+    parser.add_argument(
+        "-e",
+        "--exclude-dirs",
+        type=str,
+        default="",
+        help="Comma-separated list of directories to exclude. Replaces the default set if provided.",
+    )
+    parser.add_argument(
+        "-X",
+        "--exclude-extensions",
+        type=str,
+        default="",
+        help="Comma-separated list of file extensions to exclude.",
+    )
+    """
+    Additional parser arguments:  
+    """
+    parser.add_argument(
+        "-e",
+        "--exclude-dirs",
+        default="",
+        help="Comma-separated directory names or paths to additionally exclude files.",
+    )
+    parser.add_argument(
+        "--replace-exclude-dirs",
+        action="store_true",
+        help="Replace default excluded directories with the list from -e.",
+    )
+    parser.add_argument(
+        "--exclude-files",
+        default="",
+        help="Comma-separated file paths or globs to exclude.",
+    )
+
     return parser.parse_args()
+
+
+# Helper to remove whitespace
+def _split_csv(s: str):
+    if not s:
+        return []
+    parts = []
+    for raw in s.split(","):
+        p = "".join(ch for ch in raw if not ch.isspace())
+        if p:
+            parts.append(p)
+    return parts
+
 
 # TODO: Works on MacOS and Windows 10+. Linux support can be added later
 def copy_to_clipboard(content):
     """Copy text to the system clipboard on macOS and Windows."""
     try:
-        if sys.platform == 'darwin':
-            process = subprocess.Popen('pbcopy', env={'LANG': 'en_US.UTF-8'}, stdin=subprocess.PIPE)
-            process.communicate(content.encode('utf-8'))
+        if sys.platform == "darwin":
+            process = subprocess.Popen(
+                "pbcopy", env={"LANG": "en_US.UTF-8"}, stdin=subprocess.PIPE
+            )
+            process.communicate(content.encode("utf-8"))
             return process.returncode == 0
-        elif sys.platform.startswith('win'):
+        elif sys.platform.startswith("win"):
             # Windows 10+ ships with the 'clip' utility
-            process = subprocess.Popen('clip', stdin=subprocess.PIPE, shell=True)
+            process = subprocess.Popen("clip", stdin=subprocess.PIPE, shell=True)
             # clip expects UTF-16LE encoding
-            process.communicate(content.encode('utf-16le'))
+            process.communicate(content.encode("utf-16le"))
             return process.returncode == 0
         else:
             print("Clipboard copy is only supported on macOS and Windows 10+.")
@@ -196,6 +306,7 @@ def copy_to_clipboard(content):
     except Exception as e:
         print(f"Error copying to clipboard: {e}")
         return False
+
 
 def main():
     args = parse_arguments()
@@ -208,28 +319,37 @@ def main():
 
     if args.include_files:
         # Split the comma-separated string and remove any extra whitespace.
-        FILES_TO_INCLUDE = {f.strip() for f in args.include_files.split(',') if f.strip()}
+        FILES_TO_INCLUDE = {
+            f.strip() for f in args.include_files.split(",") if f.strip()
+        }
 
     if args.extensions:
-        PROGRAMMING_EXTENSIONS = {ext.strip() for ext in args.extensions.split(',') if ext.strip()}
+        PROGRAMMING_EXTENSIONS = {
+            ext.strip() for ext in args.extensions.split(",") if ext.strip()
+        }
 
     if args.exclude_dirs:
-        EXCLUDE_DIRS = {d.strip() for d in args.exclude_dirs.split(',') if d.strip()}
-        
-    if args.exclude_extensions:
-        EXCLUDE_EXTENSIONS = {ext.strip() for ext in args.exclude_extensions.split(',') if ext.strip()}
+        EXCLUDE_DIRS = {d.strip() for d in args.exclude_dirs.split(",") if d.strip()}
 
+    if args.exclude_extensions:
+        EXCLUDE_EXTENSIONS = {
+            ext.strip() for ext in args.exclude_extensions.split(",") if ext.strip()
+        }
 
     # Debugging print statement to verify exclusions
     print(f"Excluding extensions: {EXCLUDE_EXTENSIONS}")
     startpath = args.directory
 
     if not os.path.isdir(startpath):
-        print(f"Error: The specified directory '{startpath}' does not exist or is not a directory.")
+        print(
+            f"Error: The specified directory '{startpath}' does not exist or is not a directory."
+        )
         sys.exit(1)
 
     if not os.path.isdir(startpath):
-        print(f"Error: The specified directory '{startpath}' does not exist or is not a directory.")
+        print(
+            f"Error: The specified directory '{startpath}' does not exist or is not a directory."
+        )
         sys.exit(1)
 
     # Generate directory tree
@@ -241,8 +361,8 @@ def main():
     for root, dirs, files in os.walk(startpath):
         # Determine the relative path from the startpath
         rel_path = os.path.relpath(root, startpath)
-        if rel_path == '.':
-            rel_path = ''
+        if rel_path == ".":
+            rel_path = ""
 
         # Split the relative path into parts
         path_parts = rel_path.split(os.sep) if rel_path else []
@@ -254,27 +374,30 @@ def main():
             continue
 
         # Check if the current directory is excluded
-        current_dir = os.path.basename(root) if rel_path else os.path.basename(
-            startpath.rstrip(os.sep)) or startpath
+        current_dir = (
+            os.path.basename(root)
+            if rel_path
+            else os.path.basename(startpath.rstrip(os.sep)) or startpath
+        )
         if current_dir in EXCLUDE_DIRS:
             dirs[:] = []  # Prevent os.walk from traversing further
             continue
 
         for file in files:
-            
+
             file_path = os.path.join(root, file)
-            
+
             # Get file extension
             _, ext = os.path.splitext(file)
             ext = ext.lower()
 
             # Skip files with excluded extensions
             if ext in EXCLUDE_EXTENSIONS:
-                continue  
+                continue
 
             # Skip non-programming files
             if not is_programming_file(file):
-                continue 
+                continue
             # Get relative path for exclusion and headers
             rel_file_path = os.path.relpath(file_path, startpath)
 
@@ -285,7 +408,7 @@ def main():
             aggregated_content += header
 
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
                     aggregated_content += content
             except Exception as e:
@@ -303,9 +426,11 @@ def main():
     else:
         # Write the aggregated content to the master file
         try:
-            with open(FULL_CODE_FILE_NAME, 'w', encoding='utf-8') as master_file:
+            with open(FULL_CODE_FILE_NAME, "w", encoding="utf-8") as master_file:
                 master_file.write(aggregated_content)
-            print(f"Full code file '{FULL_CODE_FILE_NAME}' has been created successfully.")
+            print(
+                f"Full code file '{FULL_CODE_FILE_NAME}' has been created successfully."
+            )
         except Exception as e:
             print(f"Error writing to file '{FULL_CODE_FILE_NAME}': {e}")
             sys.exit(1)
