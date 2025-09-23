@@ -236,13 +236,6 @@ def parse_arguments():
         help="Comma-separated list of programming extensions to use. Replaces the default set if provided.",
     )
     parser.add_argument(
-        "-e",
-        "--exclude-dirs",
-        type=str,
-        default="",
-        help="Comma-separated list of directories to exclude. Replaces the default set if provided.",
-    )
-    parser.add_argument(
         "-X",
         "--exclude-extensions",
         type=str,
