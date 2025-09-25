@@ -148,13 +148,130 @@ def test_exclude_dirs():
         assert "dummy.py" not in content, "File inside excluded directory should not be included"
         print("test_exclude_dirs passed.")
 
+def test_exclude_files_glob():
+    """
+    Ensure --exclude-files supports globs and exact paths, without blocking other files.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, "foo"), exist_ok=True)
+
+        # A JSON file we intend to exclude via glob
+        cfg = os.path.join(tmpdir, "foo", "config.json")
+        with open(cfg, "w", encoding="utf-8") as f:
+            f.write('{"ok": true}')
+
+        # A keep file that should still be included
+        keep = os.path.join(tmpdir, "foo", "keep.py")
+        with open(keep, "w", encoding="utf-8") as f:
+            f.write("print('KEEP_ME')")
+
+        # Run with a glob that excludes the json file
+        run_script(["-d", tmpdir, "--exclude-files", "foo/*.json"], cwd=tmpdir)
+        output_file = os.path.join(tmpdir, "full_code.txt")
+        with open(output_file, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        assert "config.json" not in content, "config.json should be excluded by glob"
+        assert "KEEP_ME" in content, "keep.py should still be included"
+
+
+def test_replace_exclude_dirs_behavior():
+    """
+    Ensure --replace-exclude-dirs replaces the defaults entirely.
+    - With replace: only the user-provided dirs are excluded (defaults like node_modules no longer excluded).
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # node_modules would normally be excluded by default
+        node_modules_dir = os.path.join(tmpdir, "node_modules")
+        os.makedirs(node_modules_dir, exist_ok=True)
+        nm_file = os.path.join(node_modules_dir, "lib.js")
+        with open(nm_file, "w", encoding="utf-8") as f:
+            f.write("console.log('IN_NODE_MODULES');")
+
+        # custom_dir is the one we will exclude instead
+        custom_dir = os.path.join(tmpdir, "custom_dir")
+        os.makedirs(custom_dir, exist_ok=True)
+        custom_file = os.path.join(custom_dir, "x.py")
+        with open(custom_file, "w", encoding="utf-8") as f:
+            f.write("print('IN_CUSTOM_DIR')")
+
+        # A normal file that should always be included
+        root_py = os.path.join(tmpdir, "main.py")
+        with open(root_py, "w", encoding="utf-8") as f:
+            f.write("print('ROOT_OK')")
+
+        # Replace default excludes with ONLY 'custom_dir'
+        run_script(["-d", tmpdir, "--replace-exclude-dirs", "-e", "custom_dir"], cwd=tmpdir)
+        output_file = os.path.join(tmpdir, "full_code.txt")
+        with open(output_file, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # custom_dir should be excluded and marked; file inside should not appear
+        assert "custom_dir/ [EXCLUDED]" in content, "custom_dir should be marked [EXCLUDED] when replaced"
+        assert "IN_CUSTOM_DIR" not in content, "Files in custom_dir must be excluded in replace mode"
+
+        # node_modules should NOT be excluded anymore in replace mode → its file is included
+        assert "IN_NODE_MODULES" in content, "node_modules should not be excluded in replace mode"
+        assert "ROOT_OK" in content, "root file should be included"
+
+
+def test_extension_precedence_exclude_overrides_allowlist():
+    """
+    When both -x (allowlist) and -X (denylist) are provided,
+    the denylist should win for overlapping extensions.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        js_file = os.path.join(tmpdir, "a.js")
+        with open(js_file, "w", encoding="utf-8") as f:
+            f.write("console.log('JS_INCLUDED?');")
+
+        py_file = os.path.join(tmpdir, "b.py")
+        with open(py_file, "w", encoding="utf-8") as f:
+            f.write("print('PY_INCLUDED')")
+
+        # Allow .py and .js, but explicitly exclude .js
+        run_script(["-d", tmpdir, "-x", ".py,.js", "-X", ".js"], cwd=tmpdir)
+        output_file = os.path.join(tmpdir, "full_code.txt")
+        with open(output_file, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        assert "JS_INCLUDED?" not in content, ".js should be excluded by -X even if allowed by -x"
+        assert "PY_INCLUDED" in content, ".py should remain included"
+
+
+def test_tree_not_traversing_excluded():
+    """
+    Ensure directory tree prints '[EXCLUDED]' once for an excluded dir and does not traverse into it.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        deep = os.path.join(tmpdir, "secret")
+        os.makedirs(os.path.join(deep, "nested"), exist_ok=True)
+        secret_file = os.path.join(deep, "nested", "hidden.py")
+        with open(secret_file, "w", encoding="utf-8") as f:
+            f.write("print('SHOULD_NOT_APPEAR')")
+
+        # Exclude the top-level 'secret' dir
+        run_script(["-d", tmpdir, "-e", "secret"], cwd=tmpdir)
+        output_file = os.path.join(tmpdir, "full_code.txt")
+        with open(output_file, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Tree marks the top-level dir and stops
+        assert "secret/ [EXCLUDED]" in content, "Top-level excluded dir should be marked once"
+        assert "hidden.py" not in content, "Files inside excluded dir must not appear (no traversal)"
+
 
 if __name__ == "__main__":
+    # Keep running everything if executed directly
     test_default_arguments()
     test_directory_argument()
     test_default_output()
     test_override_output_file()
     test_include_files()
-    test_extensions()
-    test_exclude_dirs()
+    # New tests
+    test_exclude_files_glob()
+    test_replace_exclude_dirs_behavior()
+    test_extension_precedence_exclude_overrides_allowlist()
+    test_tree_not_traversing_excluded()
+
     print("All tests passed!")
