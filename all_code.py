@@ -95,7 +95,6 @@ PROGRAMMING_EXTENSIONS = {
 
 # Define directories to exclude during file aggregation and directory tree generation
 DEFAULT_EXCLUDED_DIRS = {
-    '''
     "venv",
     ".venv",
     "node_modules",
@@ -106,7 +105,6 @@ DEFAULT_EXCLUDED_DIRS = {
     "temp",
     "old_files",
     "flask_session",
-    '''
 }
 
 # Define the name of this script to exclude it

@@ -1,31 +1,55 @@
 # All Code Aggregator
 
-Aggregate source files into a single text file that starts with a compact directory tree, followed by file-by-file sections. Great for sharing a self-contained snapshot with tools or reviewers.
+Snapshot your project into one readable text file: a compact directory tree followed by file-by-file sections. Perfect for review packets, sharing with AI tools, or quick audits.
 
 ---
 
-## What’s in this PR (exclusions + clarity)
+# What’s new in this PR (exclusions + clarity)
 
-This fork focuses on **exclusion controls** and a few quality-of-life improvements:
+## Excluding directories via -e
 
-- **Output convenience**
-  - `-o` accepts a subpath (create the folder first): `-o tests/out.txt`.
-- **New/clarified options**
+- Previously: -e replaced the entire default excluded set (could accidentally re-include node_modules/.venv if you weren’t careful).
+- Now: -e is additive by default; use --replace-exclude-dirs to replace the set intentionally.
 
-  - `-e, --exclude-dirs` — add names or **paths** to exclude (**additive**).
-  - `--replace-exclude-dirs` — **replace** the default excluded set entirely.
-  - `--exclude-files` — comma-separated **globs** or **exact paths** (absolute or project-relative).
-  - `-X, --exclude-extensions` — extension denylist (wins over `-x`).
-  - `-x, --extensions` — extension allowlist (_replaces_ the default set “programming-like” set).
-  - `--self` — include `all_code.py` in output (hidden by default to avoid self-inclusion).
+## What the directory tree shows
 
-- **Tree < - > aggregation consistency**
-  - Default excluded dirs (e.g. `node_modules`, `.venv`) are shown once with `[EXCLUDED]` and not traversed.
-  - Files excluded via `--exclude-files` or `-X` are marked `[EXCLUDED]` in the tree so it’s obvious why they’re missing later.
+- Previously: Only default-excluded dirs (like node_modules, .venv) were tagged [EXCLUDED]; individual files excluded by flags weren’t called out in the tree.
+- Now: Files excluded via --exclude-files or -X are marked [EXCLUDED] in the tree so readers see why they’re missing from aggregation.
 
-> None of these change defaults for existing users; they’re opt-in.
+## Which directories can be excluded
 
-## Install
+- Previously: Exclusion was based on directory names supplied via -e and a fixed default name set.
+- Now: -e accepts names or paths; you can exclude by name or path-prefix, and you can replace the defaults via --replace-exclude-dirs.
+
+## File-level excludes
+
+- Previously: No --exclude-files flag; exclusion was directory-based (plus extension denylist via -X).
+- Now: --exclude-files supports comma-separated globs or exact paths (absolute or project-relative).
+
+## Extension rules
+
+- Previously: -x (allowlist) replaced the entire default set of allowed extension. Denylist precedence was not made clear.
+- Now: Documented precedence: -X (denylist) overrides -x (allowlist). Clearer mental model.
+
+## Output path convenience
+
+- Previously: -o could point to a subpath if it already existed (not documented clearly).
+- Now: Documented: -o accepts a subpath; create the folder first (e.g., -o tests/output.txt).
+
+## Test runner portability (developer experience)
+
+Previously: Tests invoked “python” directly (could call the wrong interpreter).
+Now: Tests invoke sys.executable so they use the active interpreter (virtualenv-friendly).
+
+> None of these change defaults; they’re opt-in” immediately after the changes block for emphasis.
+
+## Additional details of changes
+
+- Files excluded due to a user-specified extension exclusion are marked as [EXCLUDED] in the tree overview and not traversed.
+- Default excluded dirs (e.g. `node_modules`, `.venv`) are also marked once with `[EXCLUDED]` and not traversed.
+- `--self` — include `all_code.py` in output (hidden by default to avoid self-inclusion).
+
+## Installation
 
 **From GitHub (original project)**
 
@@ -35,16 +59,24 @@ cd all_code
 pip install -e .
 ```
 
-# Usage
+Install this PR from my fork (for reviewers)
 
 ```bash
-all-code
+pip install git+https://github.com/hamzadev3/all_code@feature/exclusions.git
+```
+
+# Usage
+
+## Help
+
+```bash
+all-code --help
 ```
 
 ## Specify directory
 
 ```bash
-all-code -d /path/to/project
+all-code -d /path/to/project -o output.txt
 ```
 
 ## Copy to clipboard (macOS / Windows 10+)
@@ -53,46 +85,56 @@ all-code -d /path/to/project
 all-code -d /path/to/project -c
 ```
 
-## Write to a subfolder of directory
+## Output to a subfolder of directory
 
 ```bash
-# mkdir -p tests
-all-code -d /path/to/project . -o tests/out.txt
+mkdir -p tests
+all-code -d /path/to/project -o tests/output.txt
 ```
 
 ## Exclude by glob or exact path
 
 ```bash
-all-code -d /path/to/project --exclude-files "foo/*.json,**/secrets.*"
+all-code -d /path/to/project -o output.txt --exclude-files "foo/*.json,**/secrets.*"
+```
+
+## Replace all default exclusions entirely, then add your own exclusion
+
+```bash
+all-code -d /path/to/project -o output.txt --replace-exclude-dirs -e "my_generated,build-cache"
 ```
 
 ## Allowlist extensions (denylist wins if both set)
 
 ```bash
-all-code -d /path/to/project -x ".py,.ts" -X ".py"
+all-code -d /path/to/project -o output.txt -x ".py,.ts"
+all-code -d /path/to/project -o output.txt -X ".py"
 ```
+
+- `-x` allows extensions that may have been left out of the hardcoded set of accepted extensions
+- `-X` denies them. In this case, -X takes priority
 
 ## Add more excluded dirs (keeps defaults)
 
 ```bash
-all-code -d /path/to/project -e "secret,bar"
+all-code -d /path/to/project -o output.txt -e "secret,bar"
 ```
 
 ## Replace default excluded dirs entirely
 
 ```bash
-all-code -d /path/to/project --replace-exclude-dirs -e "my_generated,build-cache"
+all-code -d /path/to/project -o output.txt --replace-exclude-dirs -e "my_generated,build-cache"
 ```
 
 ## Include the tool itself
 
 ```bash
-all-code --self
+all-code -o output.txt --self
 ```
 
 # Output format
 
-```php
+```
 Directory Tree:
 project/
 │   ├── src/
@@ -108,7 +150,7 @@ print("hello world")
 
 # Defaults & Notes
 
-- Default excluded directories (not traversed): node_modules, .venv, venv, **pycache**, .git, dist, build, temp, old_files, flask_session.
+- Default excluded directories (not traversed): node\*modules, .venv, venv, pycache, .git, dist, build, temp, old_files, flask_session.
 
 - By default, only “programming-like” extensions are aggregated. Use -x to override or -X to deny specific extensions.
 
@@ -126,10 +168,10 @@ python test_all_code.py
 
 - Directory tree now marks user-excluded files with [EXCLUDED].
 
-- Allow file address exlusion in addition to file name exclusion.
+- Allow file path exlusion in addition to file name exclusion.
 
 - Add --exclude-files, --replace-exclude-dirs, --self.
 
-- Make -e additive by default (use --replace-exclude-dirs to replace).
+- Make -e additive by default (use --replace-exclude-dirs to replace the entire directory).
 
 - Clarity: -X (denylist) beats -x (allowlist).
