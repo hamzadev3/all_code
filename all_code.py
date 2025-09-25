@@ -18,6 +18,7 @@ import subprocess
 import pathlib
 import fnmatch
 
+
 # Define the master file name
 FULL_CODE_FILE_NAME = "full_code.txt"
 
@@ -94,6 +95,7 @@ PROGRAMMING_EXTENSIONS = {
 
 # Define directories to exclude during file aggregation and directory tree generation
 DEFAULT_EXCLUDED_DIRS = {
+    '''
     "venv",
     ".venv",
     "node_modules",
@@ -104,58 +106,96 @@ DEFAULT_EXCLUDED_DIRS = {
     "temp",
     "old_files",
     "flask_session",
+    '''
 }
 
 # Define the name of this script to exclude it
 SCRIPT_NAME = os.path.basename(__file__)
 
 # Define files to exclude from both aggregation and directory tree
-EXCLUDE_FILES = {SCRIPT_NAME, "package-lock.json", "package.json", "temp.py"}
+EXCLUDE_FILES = {"package-lock.json", "package.json", "temp.py"}
 
 
-def generate_directory_tree(startpath, should_skip_dir):
+def generate_directory_tree(startpath, should_skip_dir, is_tree_excluded_file=None):
     """
     Generates an ASCII directory tree.
     - Excluded directories and their subdirectories are listed once and marked [EXCLUDED].
-    - The script itself is excluded from the tree.
-    Uses the provided should_skip_dir(dirpath) for exclusion logic.
+    - Files are listed once; if a file is user-excluded, it is shown as [EXCLUDED].
     """
     tree = ""
     for root, dirs, files in os.walk(startpath):
-        # Determine the relative path from the startpath
+        # compute path pieces / indent
         rel_path = os.path.relpath(root, startpath)
         if rel_path == ".":
             rel_path = ""
-
-        # Split the relative path into parts
-        path_parts = rel_path.split(os.sep) if rel_path else []
-
-        # Calculate the level of depth
-        level = len(path_parts)
+        level = len(rel_path.split(os.sep)) if rel_path else 0
         indent = "│   " * level + "├── " if level > 0 else ""
 
-        # Add the current directory to the tree
         current_dir = (
             os.path.basename(root)
             if rel_path
             else os.path.basename(startpath.rstrip(os.sep)) or startpath
         )
 
-        # New: use should_skip_dir to decide whether to prune/display as EXCLUDED
+        # directory-level exclusion
         if should_skip_dir(root):
             tree += f"{indent}{current_dir}/ [EXCLUDED]\n"
-            dirs[:] = []  # Prevent os.walk from traversing further
+            dirs[:] = []  # don't descend
             continue
 
         tree += f"{indent}{current_dir}/\n"
 
-        # List files, excluding the script itself and any in EXCLUDE_FILES
         for f in files:
             if f in EXCLUDE_FILES:
-                continue  # Skip excluded files
-            tree += f"{'│   ' * (level + 1)}├── {f}\n"
+                continue  # hide internal/always-excluded files from the tree
+
+            path = os.path.join(root, f)
+            # Decide if this file should be *marked* excluded in the tree.
+            # IMPORTANT: do not mark non-programming files as excluded just because
+            # they won't be aggregated; only mark files explicitly excluded by user controls.
+            excluded_in_tree = False
+            if is_tree_excluded_file is not None:
+                excluded_in_tree = is_tree_excluded_file(path)
+
+            suffix = " [EXCLUDED]" if excluded_in_tree else ""
+            tree_line = f"{'│   ' * (level + 1)}├── {f}{suffix}\n"
+            tree += tree_line
 
     return tree
+
+# New helper: decide if a file should appear as [EXCLUDED] in the tree.
+# Only explicit user controls should show "[EXCLUDED]" tags:
+#  - --exclude-files matches (glob or exact)
+#  - -X/--exclude-extensions matches
+def make_is_tree_excluded_file(exclude_file_globs, excluded_exts, startpath):
+    """
+    Tree-exclusion predicate. Used by the directory-tree printer only.
+    Non-programming files are *not* tagged excluded just because they won't be aggregated.
+    """
+    
+    def _pred(filepath: str) -> bool:
+        # extension-based denylist (user-provided -X)
+        _, ext = os.path.splitext(filepath)
+        ext = ext.lower()
+        if ext and ext in excluded_exts:
+            return True
+
+        # --exclude-files globs or exact paths (abs or project-relative)
+        if exclude_file_globs:
+            abs_path = os.path.abspath(filepath)
+            rel_path = os.path.relpath(filepath, startpath)
+            for pat in exclude_file_globs:
+                if (
+                    fnmatch.fnmatch(abs_path, pat)
+                    or fnmatch.fnmatch(rel_path, pat)
+                    or abs_path == pat
+                    or rel_path == pat
+                ):
+                    return True
+
+        return False
+
+    return _pred
 
 
 def is_programming_file(filename):
@@ -169,6 +209,7 @@ def should_exclude(path):
     # Determines if a file should be excluded based on its path.
     # - Excludes files in EXCLUDE_DIRS and their subdirectories.
     # - Excludes files listed in EXCLUDE_FILES.
+    # legacy function
 
     # Normalize path separators
     normalized_path = os.path.normpath(path)
@@ -259,12 +300,14 @@ def parse_arguments():
         default="",
         help="Comma-separated file paths or globs to exclude.",
     )
+    parser.add_argument("--self", action="store_true", help="Include all_code.py in tree/aggregation. all_code.py is excluded by default to avoid inclusion of the working script behind this tool.")
 
     return parser.parse_args()
 
 
 # Helper to remove whitespace
 def _split_csv(s: str):
+    """Split a comma-separated string, stripping *all* whitespace (incl. NBSP)."""
     if not s:
         return []
     parts = []
@@ -274,7 +317,6 @@ def _split_csv(s: str):
         if p:
             parts.append(p)
     return parts
-
 
 # TODO: Works on MacOS and Windows 10+. Linux support can be added later
 def copy_to_clipboard(content):
@@ -324,6 +366,11 @@ def main():
         EXCLUDE_EXTENSIONS = {
             ext.strip() for ext in args.exclude_extensions.split(",") if ext.strip()
         }
+        
+    # Users may include this script in output via --self.
+    # By default we hide it to prevent the tool from including itself.
+    if not args.self:
+        EXCLUDE_FILES.add(SCRIPT_NAME)
 
     # Debugging print statement to verify exclusions
     print(f"Excluding extensions: {EXCLUDE_EXTENSIONS}")
@@ -335,11 +382,8 @@ def main():
         )
         sys.exit(1)
 
-    # -------------------------
-    # Added build exclusion logic (additive -e, path-aware -e, per-file excludes)
-    # -------------------------
-
-    # 1) Effective excluded directories (additive by default)
+    # Build the effective directory exclusion set.
+    # Default is additive: defaults ∪ user list. Use --replace-exclude-dirs to replace.
     user_excluded = set(_split_csv(args.exclude_dirs))
     effective_excluded = (
         user_excluded
@@ -367,6 +411,7 @@ def main():
 
     # 3) File-level excludes (exact and glob)
     exclude_file_globs = _split_csv(args.exclude_files)
+    
 
     # 4) Extension sets (NBSP-safe)
     excluded_exts = set(_split_csv(args.exclude_extensions))
@@ -376,6 +421,7 @@ def main():
 
     # 5) Helpers used by tree and aggregation
     def should_skip_dir(dirpath: str) -> bool:
+        """Return True if a directory should not be traversed (name match or path-prefix match)."""
         base = os.path.basename(dirpath.rstrip(os.sep))
         if base in exclude_dir_names:
             return True
@@ -386,7 +432,21 @@ def main():
             rp = os.path.abspath(dirpath)
         return any(rp.startswith(pref) for pref in exclude_dir_prefixes)
 
+    is_tree_excluded_file = make_is_tree_excluded_file(
+        exclude_file_globs, excluded_exts, startpath
+    )
+    directory_tree = generate_directory_tree(
+        startpath, should_skip_dir, is_tree_excluded_file
+    )
     def should_skip_file(filepath: str) -> bool:
+        """
+        Return True if a file must be skipped by the aggregator:
+        - extension denylist (-X)
+        - not in allowed extension allowlist
+        - matches --exclude-files (abs or project-relative)
+        - legacy exclude set (EXCLUDE_FILES)
+        """
+        
         # extension-based exclusions
         _, ext = os.path.splitext(filepath)
         ext = ext.lower()
@@ -411,11 +471,11 @@ def main():
             return True
         return False
 
-    # Generate directory tree (using new exclusion logic)
-    directory_tree = generate_directory_tree(startpath, should_skip_dir)
-
+    # Two-pass approach:
+    #  1) print the tree (with explicit [EXCLUDED] tags for user-excludes)
+    #  2) walk again to aggregate file contents (pruning excluded dirs)
     aggregated_content = "Directory Tree:\n" + directory_tree + "\n\n"
-
+    
     # Traverse the directory again to process files
     for root, dirs, files in os.walk(startpath):
         # NEW: prune directories in-place so os.walk does not descend into excluded dirs
@@ -453,6 +513,7 @@ def main():
                 error_msg = f"\n# Error reading file {rel_file_path}: {e}\n"
                 aggregated_content += error_msg
 
+
     if args.clipboard:
         # Copy the aggregated content to the clipboard
         success = copy_to_clipboard(aggregated_content)
@@ -472,6 +533,7 @@ def main():
         except Exception as e:
             print(f"Error writing to file '{FULL_CODE_FILE_NAME}': {e}")
             sys.exit(1)
+    # after the big for-root,dirs,files loop that adds file contents:
 
 
 if __name__ == "__main__":
