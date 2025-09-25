@@ -1,6 +1,7 @@
 # All Code Aggregator
 
 Snapshot your project into one readable text file: a compact directory tree followed by file-by-file sections. Perfect for review packets, sharing with AI tools, or quick audits.
+This is a focused PR on exclusion controls and clarity.
 
 ---
 
@@ -41,7 +42,7 @@ Snapshot your project into one readable text file: a compact directory tree foll
 Previously: Tests invoked “python” directly (could call the wrong interpreter).
 Now: Tests invoke sys.executable so they use the active interpreter (virtualenv-friendly).
 
-> None of these change defaults; they’re opt-in” immediately after the changes block for emphasis.
+> None of these change defaults; they’re opt-in immediately after the changes block for emphasis.
 
 ## Additional details of changes
 
@@ -62,7 +63,7 @@ pip install -e .
 Install this PR from my fork (for reviewers)
 
 ```bash
-pip install git+https://github.com/hamzadev3/all_code@feature/exclusions.git
+pip install git+https://github.com/hamzadev3/all_code@feature/exclusions
 ```
 
 # Usage
@@ -150,7 +151,7 @@ print("hello world")
 
 # Defaults & Notes
 
-- Default excluded directories (not traversed): node\*modules, .venv, venv, pycache, .git, dist, build, temp, old_files, flask_session.
+- Default excluded directories (not traversed): node_modules, .venv, venv, pycache, .git, dist, build, temp, old_files, flask_session.
 
 - By default, only “programming-like” extensions are aggregated. Use -x to override or -X to deny specific extensions.
 
@@ -168,7 +169,7 @@ python test_all_code.py
 
 - Directory tree now marks user-excluded files with [EXCLUDED].
 
-- Allow file path exlusion in addition to file name exclusion.
+- Allow file path exclusion in addition to file name exclusion.
 
 - Add --exclude-files, --replace-exclude-dirs, --self.
 
